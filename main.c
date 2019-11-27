@@ -41,10 +41,13 @@ Datamapline* init_dml_data() {
     return dmls;
 }
 
+
+
 //calback data structure for listing sheets
-struct xlsx_list_sheets_data {
+typedef struct xlsx_list_sheets_data {
+  unsigned count;
   char* firstsheet;
-};
+} XLSXListSheetData;
 //
 //
 //calback function for listing sheets
@@ -57,8 +60,6 @@ int xlsx_list_sheets_callback (const char* name, void* callbackdata)
   return 0;
 }
 
-
-//calback function for end of row
 int sheet_row_callback (size_t row, size_t maxcol, void* callbackdata)
 {
 //  printf("At the end of the row.\n");
@@ -91,33 +92,41 @@ int sheet_cell_callback (size_t row, size_t col, const XLSXIOCHAR* value, void* 
   return 0;
 }
 
+int get_sheets(const char *sheetname, void* data) {
+   XLSXListSheetData *d = (XLSXListSheetData *)data;
+   printf("Counter: %d\tSheetname: %s\n", d->count, sheetname); 
+   d->count++;
+   return 0;
+}
 
 
 int main (int argc, char* argv[])
 {
 
+  char *sheets = malloc(sizeof(char*) * 20);
 
-  xlsxioreader xlsxioread;
+  // we need a xlsxioreader object
+  xlsxioreader reader;
+    
   //open .xlsx file for reading
-  if ((xlsxioread = xlsxioread_open(filename)) == NULL) {
+  if ((reader = xlsxioread_open(filename)) == NULL) {
     fprintf(stderr, "Error opening .xlsx file\n");
     return 1;
   }
+  
   //list available sheets
-  struct xlsx_list_sheets_data sheetdata;
-  sheetdata.firstsheet = NULL;
-  printf("Available sheets:\n");
-  xlsxioread_list_sheets(xlsxioread, xlsx_list_sheets_callback, &sheetdata);
+  XLSXListSheetData sheetdata = {0, "bonkers"};
+
+  xlsxioread_list_sheets(reader, get_sheets, &sheetdata);
 
   /* TODO
    * Here we need to loop through each sheet and call xlsxioread_process in
    * each sheet.
    */
   struct cb_data toss = {.x = 10, .filename = filename, .sheet = sheetdata.firstsheet };
-  xlsxioread_process(xlsxioread, sheetdata.firstsheet, XLSXIOREAD_SKIP_EMPTY_ROWS, sheet_cell_callback, sheet_row_callback, &toss);
+  xlsxioread_process(reader, sheetdata.firstsheet, XLSXIOREAD_SKIP_EMPTY_ROWS, sheet_cell_callback, sheet_row_callback, &toss);
 
   //clean up
-  free(sheetdata.firstsheet);
-  xlsxioread_close(xlsxioread);
+  xlsxioread_close(reader);
   return 0;
 }
