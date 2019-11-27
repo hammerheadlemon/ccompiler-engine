@@ -46,6 +46,7 @@ Datamapline* init_dml_data() {
 //calback data structure for listing sheets
 typedef struct xlsx_list_sheets_data {
   unsigned count;
+  char* sheets;
   char* firstsheet;
 } XLSXListSheetData;
 //
@@ -87,7 +88,7 @@ int sheet_cell_callback (size_t row, size_t col, const XLSXIOCHAR* value, void* 
           dmls = realloc(dmls, (sizeof(Datamapline)) * 500);
       }
       counter++;
-      printf("Counter: %d Value: %s Sheet: %s File: %s\n", counter, value, d->sheet,  d->filename);
+//      printf("Counter: %d Value: %s Sheet: %s File: %s\n", counter, value, d->sheet,  d->filename);
   }
   return 0;
 }
@@ -95,6 +96,7 @@ int sheet_cell_callback (size_t row, size_t col, const XLSXIOCHAR* value, void* 
 int get_sheets(const char *sheetname, void* data) {
    XLSXListSheetData *d = (XLSXListSheetData *)data;
    printf("Counter: %d\tSheetname: %s\n", d->count, sheetname); 
+   d->sheets[d->count] = *sheetname;
    d->count++;
    return 0;
 }
@@ -115,16 +117,20 @@ int main (int argc, char* argv[])
   }
   
   //list available sheets
-  XLSXListSheetData sheetdata = {0, "bonkers"};
+  XLSXListSheetData sheetdata = {0, sheets};
 
   xlsxioread_list_sheets(reader, get_sheets, &sheetdata);
 
-  /* TODO
-   * Here we need to loop through each sheet and call xlsxioread_process in
-   * each sheet.
-   */
-  struct cb_data toss = {.x = 10, .filename = filename, .sheet = sheetdata.firstsheet };
-  xlsxioread_process(reader, sheetdata.firstsheet, XLSXIOREAD_SKIP_EMPTY_ROWS, sheet_cell_callback, sheet_row_callback, &toss);
+  size_t shlen = sizeof(sheets) / sizeof(char*);
+  printf("Size of sheets %ld", shlen);
+
+  for (unsigned x=0; x<=shlen; x++) {
+    char *str = &sheets[x];
+    printf("Doing the first sheet! %s\n\n\n", str);
+    struct cb_data toss = {.x = 10, .filename = filename, .sheet = &sheets[x]};
+    xlsxioread_process(reader, sheetdata.firstsheet, XLSXIOREAD_SKIP_EMPTY_ROWS, sheet_cell_callback, sheet_row_callback, &toss);
+  }
+
 
   //clean up
   xlsxioread_close(reader);
