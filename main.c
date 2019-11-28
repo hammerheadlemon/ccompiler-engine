@@ -46,20 +46,11 @@ Datamapline* init_dml_data() {
 //calback data structure for listing sheets
 typedef struct xlsx_list_sheets_data {
   unsigned count;
-  char* sheets;
+  char** sheets;
   char* firstsheet;
 } XLSXListSheetData;
 //
 //
-//calback function for listing sheets
-int xlsx_list_sheets_callback (const char* name, void* callbackdata)
-{
-  struct xlsx_list_sheets_data* data = (struct xlsx_list_sheets_data*)callbackdata;
-  if (!data->firstsheet)
-    data->firstsheet = strdup(name);
-  printf("Sheet: - %s\n", name);
-  return 0;
-}
 
 int sheet_row_callback (size_t row, size_t maxcol, void* callbackdata)
 {
@@ -70,8 +61,6 @@ int sheet_row_callback (size_t row, size_t maxcol, void* callbackdata)
 //callback function for cell data
 int sheet_cell_callback (size_t row, size_t col, const XLSXIOCHAR* value, void* callbackdata)
 {
-  // TODO this needs to get sent in inside collbackdata
-  // Current implementation only does a single sheet, so we need to loop this
   Datamapline *dmls = init_dml_data();
   // Just testing that we can pass in callbackdata from outside
   CB_Data *d = (CB_Data *)callbackdata;
@@ -88,15 +77,24 @@ int sheet_cell_callback (size_t row, size_t col, const XLSXIOCHAR* value, void* 
           dmls = realloc(dmls, (sizeof(Datamapline)) * 500);
       }
       counter++;
-//      printf("Counter: %d Value: %s Sheet: %s File: %s\n", counter, value, d->sheet,  d->filename);
+      printf("Counter: %d Value: %s Sheet: %s File: %s\n", counter, value, d->sheet,  d->filename);
   }
   return 0;
 }
 
 int get_sheets(const char *sheetname, void* data) {
+
+   printf("In get_sheets\n");
    XLSXListSheetData *d = (XLSXListSheetData *)data;
-   printf("Counter: %d\tSheetname: %s\n", d->count, sheetname); 
-   d->sheets[d->count] = *sheetname;
+
+   printf("Counter: %d\tSheetname: %s\t", d->count, sheetname); 
+   printf("Length of sheetname is %ld\n", strlen(sheetname));
+
+   char name[strlen(sheetname)];
+   char * name_ptr = strcpy(name, sheetname);
+   printf("name variable is: %s\n", name);
+
+   d->sheets[d->count] = name_ptr;
    d->count++;
    return 0;
 }
@@ -105,7 +103,8 @@ int get_sheets(const char *sheetname, void* data) {
 int main (int argc, char* argv[])
 {
 
-  char *sheets = malloc(sizeof(char*) * 20);
+  // we can have 20 sheets only
+  char **sheets = malloc(sizeof(char*) * 20);
 
   // we need a xlsxioreader object
   xlsxioreader reader;
@@ -116,23 +115,25 @@ int main (int argc, char* argv[])
     return 1;
   }
   
-  //list available sheets
-  XLSXListSheetData sheetdata = {0, sheets};
+  //populate sheets array
+  struct dd {int count; char** sheets; char* name;};
+  struct dd d1 = {0, sheets, NULL};
+  printf("About to go into list_sheets...\n");
+  xlsxioread_list_sheets(reader, get_sheets, &d1);
 
-  xlsxioread_list_sheets(reader, get_sheets, &sheetdata);
-
-  size_t shlen = sizeof(sheets) / sizeof(char*);
-  printf("Size of sheets %ld", shlen);
+  size_t shlen = sizeof(sheets);
+  printf("Size of sheets %ld\n", shlen);
 
   for (unsigned x=0; x<=shlen; x++) {
-    char *str = &sheets[x];
-    printf("Doing the first sheet! %s\n\n\n", str);
-    struct cb_data toss = {.x = 10, .filename = filename, .sheet = &sheets[x]};
-    xlsxioread_process(reader, sheetdata.firstsheet, XLSXIOREAD_SKIP_EMPTY_ROWS, sheet_cell_callback, sheet_row_callback, &toss);
+    char *str = sheets[x];
+    printf("Doing the first sheet! %s\n", str);
+    CB_Data toss = {.x = 10, .filename = filename, .sheet = sheets[x]};
+    xlsxioread_process(reader, d1.name, XLSXIOREAD_SKIP_EMPTY_ROWS, sheet_cell_callback, sheet_row_callback, &toss);
   }
 
 
   //clean up
   xlsxioread_close(reader);
+  free(sheets);
   return 0;
 }
