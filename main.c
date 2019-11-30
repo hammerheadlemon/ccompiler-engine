@@ -3,7 +3,7 @@
 #include <string.h>
 #include <xlsxio_read.h>
 
-char *filename = "test_template.xlsx";
+char *filename = "test_template.xlsm";
 
 unsigned count = 0;
 
